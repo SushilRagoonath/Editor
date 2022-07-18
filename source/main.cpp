@@ -1,7 +1,5 @@
 #include <blah.h>
-#define ImTextureID Blah::TextureRef *
 #include <imgui.h>
-#include "blah_imgui.h"
 using namespace Blah;
 struct Editor{
     int width =500;
@@ -14,7 +12,6 @@ struct Editor{
     Vector<Subtexture> subs;
     Vec2f tile_size = Vec2f(8.f,8.f);
     int * data = nullptr;
-    Color current_color;
     void init();
     void update();
     void save();
@@ -68,40 +65,18 @@ void Editor::update(){
     int m_x,m_y;
     m_x = int(Calc::floor(mouse_pos.x/tile_size.x));
     m_y = int(Calc::floor(mouse_pos.y/tile_size.y));
-    ImGui::NewFrame();
-
-    static bool demo = true;
-    blah_imgui_dock(&demo);
-    bool imgui = ImGui::IsAnyItemFocused() ||ImGui::IsAnyItemHovered() || ImGui::IsWindowHovered() ||ImGui::IsWindowFocused();
-    {
-        if(ImGui::Begin("picker",NULL,0)){
-            ImVec2 max_region = ImGui::GetContentRegionMax();
-            float current_x = 0;
-            for (int i = 0; i < subs.size(); ++i) {
-                Subtexture t = subs[i];
-                ImGui::PushID(i);
-                ImVec2 im_size = ImVec2(20,20);
-                if(ImGui::ImageButton( &main_tex,im_size,
-                                   ImVec2(t.tex_coords[0].x,t.tex_coords[0].y),
-                                   ImVec2(t.tex_coords[2].x,t.tex_coords[2].y),
-                                   1
-                                   )) {
-                    current = i;
-                }
-                current_x += im_size.x;
-                if(current_x+im_size.x <= max_region.x){
-                    ImGui::SameLine(0,0);
-                }
-                else {
-                    current_x =0;
-                }
-                ImGui::PopID();
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            Vec2f bpos = Vec2f(10*i +50,10);
+            Rectf button = Rectf(bpos.x,bpos.y,30,30);
+            bool con = button.contains(Input::mouse());
+            if(Input::pressed(MouseButton::Left) && con){
+                current = j*8 + i;
+                
             }
-        ImGui::End();
         }
-        imgui = imgui||ImGui::IsWindowHovered() ||ImGui::IsWindowFocused();
     }
-    if(Input::down(MouseButton::Left) && in_range(mouse_pos) && !imgui){
+    if(Input::down(MouseButton::Left) && in_range(mouse_pos)){
         changed = true;
         data[m_y*width + m_x] = current;
     }
@@ -112,10 +87,9 @@ void Editor::update(){
     if(Input::down(MouseButton::Middle)){
         offset += Input::mouse() - mouse_prev;
     }
-    if(!imgui){
-        zoom -= float(Input::mouse_wheel().y)  *0.05;
-        zoom = Calc::clamp(zoom,0.001,2000);
-    }
+
+    zoom -= float(Input::mouse_wheel().y)  *0.05;
+    zoom = Calc::clamp(zoom,0.001,2000);
     Vec2f center = Vec2f(0,0);
     auto transform = Mat3x2f::create_transform(center+offset, Vec2f::zero, Vec2f(1/zoom,1/zoom), 0);
     batch.push_matrix(transform);
@@ -155,13 +129,10 @@ bool Editor::in_range(Vec2f test) {
 
 Editor editor;
 void init(){
-    blah_imgui_startup();
     editor.init();
 }
 void update(){
-    blah_imgui_update();
     editor.update();
-    blah_imgui_render();
 
 }
 
