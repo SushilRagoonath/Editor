@@ -15,6 +15,7 @@ struct Editor{
     void init();
     void update();
     void save();
+    void tile_picker();
     bool in_range(Vec2f test);
     Batch b;
     bool changed = false;
@@ -65,17 +66,8 @@ void Editor::update(){
     int m_x,m_y;
     m_x = int(Calc::floor(mouse_pos.x/tile_size.x));
     m_y = int(Calc::floor(mouse_pos.y/tile_size.y));
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 8; ++j) {
-            Vec2f bpos = Vec2f(10*i +50,10);
-            Rectf button = Rectf(bpos.x,bpos.y,30,30);
-            bool con = button.contains(Input::mouse());
-            if(Input::pressed(MouseButton::Left) && con){
-                current = j*8 + i;
-                
-            }
-        }
-    }
+
+
     if(Input::down(MouseButton::Left) && in_range(mouse_pos)){
         changed = true;
         data[m_y*width + m_x] = current;
@@ -106,7 +98,7 @@ void Editor::update(){
         }
     }
     batch.pop_matrix();
-
+    tile_picker();
     batch.str(font,String::fmt("%2d %2d\n",m_x,m_y),Vec2f(10,10),Color::white);
 
     batch.render();
@@ -124,6 +116,21 @@ bool Editor::in_range(Vec2f test) {
     y = int(Calc::floor(test.y));
     Recti t = Recti(0,0,width,height);
     return t.contains(Vec2i(x,y));
+}
+
+void Editor::tile_picker() {
+
+    batch.push_matrix(Mat3x2f::create_transform(Vec2f(300,0),Vec2f::zero,Vec2f(10,10),0));
+    Vec2 mouse_picker = Vec2f::transform(Input::mouse(),batch.peek_matrix().invert());
+    int m_x,m_y;
+    m_x = int(Calc::floor(mouse_picker.x));
+    m_y = int(Calc::floor(mouse_picker.y));
+    batch.circle(Vec2f(m_x,m_y),10,20,Color::white);
+    for (int i = 0; i < subs.size(); ++i) {
+//        batch.rect(subs[i].source,Color::white);
+//        batch.tex(subs[i],);
+    }
+    batch.pop_matrix();
 }
 
 
