@@ -1,0 +1,3 @@
+[submodule "blah"]
+	path = blah
+	url = https://github.com/NoelFB/blah.git
