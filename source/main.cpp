@@ -47,7 +47,7 @@ Batch batch;
 SpriteFont font;
 void Editor::init(){
     main_tex = Texture::create("platformer.png");
-    font = SpriteFont("default.ttf",14);
+    font = SpriteFont("default.ttf",15);
     for (int i = 0; i < 8; ++i) {
         for (int j = 0; j < 8; ++j) {
             subs.push_back(Subtexture(main_tex,Rectf(tile_size.x*j,tile_size.y*i,tile_size.x,tile_size.y)));
@@ -68,20 +68,13 @@ void Editor::update(){
     int m_x,m_y;
     m_x = int(Calc::floor(mouse_pos.x/tile_size.x));
     m_y = int(Calc::floor(mouse_pos.y/tile_size.y));
-
     ImGui::NewFrame();
+
     static bool demo = true;
-    ImGui::ShowDemoWindow(&demo);
-    // use dockspace instead . There is flag to allow main passthrough
+    blah_imgui_dock(&demo);
     bool imgui = ImGui::IsAnyItemFocused() ||ImGui::IsAnyItemHovered() || ImGui::IsWindowHovered() ||ImGui::IsWindowFocused();
     {
-        Vec2f ws= App::get_size();
-        float max_picker = 180;
-        ImGui::SetNextWindowPos(ImVec2(ws.x -max_picker,0));
-        ImGui::SetNextWindowSize(ImVec2(max_picker,ws.y));
-        ImGui::SetNextWindowBgAlpha(0.1f);
-        ImGui::SetNextWindowSizeConstraints(ImVec2(100,0),ImVec2(max_picker,ws.y));
-        if(ImGui::Begin("picker",NULL,ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoCollapse)){
+        if(ImGui::Begin("picker",NULL,0)){
             ImVec2 max_region = ImGui::GetContentRegionMax();
             float current_x = 0;
             for (int i = 0; i < subs.size(); ++i) {
@@ -92,7 +85,9 @@ void Editor::update(){
                                    ImVec2(t.tex_coords[0].x,t.tex_coords[0].y),
                                    ImVec2(t.tex_coords[2].x,t.tex_coords[2].y),
                                    1
-                                   )) current = i;
+                                   )) {
+                    current = i;
+                }
                 current_x += im_size.x;
                 if(current_x+im_size.x <= max_region.x){
                     ImGui::SameLine(0,0);
@@ -102,13 +97,17 @@ void Editor::update(){
                 }
                 ImGui::PopID();
             }
+        ImGui::End();
         }
         imgui = imgui||ImGui::IsWindowHovered() ||ImGui::IsWindowFocused();
-        ImGui::End();
     }
     if(Input::down(MouseButton::Left) && in_range(mouse_pos) && !imgui){
         changed = true;
         data[m_y*width + m_x] = current;
+    }
+	else if (Input::down(MouseButton::Right)){
+        changed = true;
+        data[m_y*width + m_x] = -1;
     }
     if(Input::down(MouseButton::Middle)){
         offset += Input::mouse() - mouse_prev;

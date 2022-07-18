@@ -9,6 +9,7 @@ add_subdirectory(blah)
 add_executable(editor
 		source/main.cpp
 		source/blah_imgui.cpp
+		source/imgui_impl.cpp
 )
 
 include_directories(
