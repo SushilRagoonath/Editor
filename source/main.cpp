@@ -1,26 +1,27 @@
 #include <blah.h>
+#define ImTextureID Blah::TextureRef *
+#include <imgui.h>
+#include "blah_imgui.h"
 using namespace Blah;
-
-
 struct Editor{
     int width =500;
     int height =width;
     Vec2f mouse_pos;
     Vec2f mouse_prev;
     Vec2f offset;
-    float zoom = 1.f;
-    TextureRef tex;
-    TargetRef target;
-    Color * data = nullptr;
+    float zoom = 0.1f;
+    TextureRef main_tex;
+    Vector<Subtexture> subs;
+    Vec2f tile_size = Vec2f(8.f,8.f);
+    int * data = nullptr;
     Color current_color;
     void init();
     void update();
     void save();
     bool in_range(Vec2f test);
     Batch b;
-    Vector<Color*> old_data;
     bool changed = false;
-
+    int current = -1;
 };
 struct UI{
     struct Element{
@@ -45,69 +46,98 @@ struct UI{
 Batch batch;
 SpriteFont font;
 void Editor::init(){
-    target = Target::create(width,height);
+    main_tex = Texture::create("platformer.png");
     font = SpriteFont("default.ttf",14);
-    tex = target->texture(0);
-//    tex = Texture::create(width,height,TextureFormat::RGBA);
-    data = new Color[width*height];
-    tex->get_data(data);
-    for (int j = 0; j < height; ++j) {
-        for (int i = 0; i < width; ++i) {
-            data[i*width + j] = Color(255,0,0,0);
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            subs.push_back(Subtexture(main_tex,Rectf(tile_size.x*j,tile_size.y*i,tile_size.x,tile_size.y)));
         }
     }
-    tex->set_data(data);
-    current_color = Color(0,255,0,255);
+    data = new int[width*height];
+    for (int i = 0; i < width; ++i) {
+        for (int j = 0; j < height; ++j) {
+            data[j*width + i] = current;
+        }
+    }
+//    data = new int[width*height] {-1};
+    current = 5;
 }
 void Editor::update(){
     App::backbuffer()->clear(Color::black);
     changed = false;
     int m_x,m_y;
-    m_x = int(Calc::floor(mouse_pos.x));
-    m_y = int(Calc::floor(mouse_pos.y));
-    zoom -= float(Input::mouse_wheel().y)  *0.1;
-    zoom = Calc::clamp(zoom,0.1,200);
-    if(Input::down(MouseButton::Left) && in_range(mouse_pos)){
+    m_x = int(Calc::floor(mouse_pos.x/tile_size.x));
+    m_y = int(Calc::floor(mouse_pos.y/tile_size.y));
+
+    ImGui::NewFrame();
+    static bool demo = true;
+    ImGui::ShowDemoWindow(&demo);
+    // use dockspace instead . There is flag to allow main passthrough
+    bool imgui = ImGui::IsAnyItemFocused() ||ImGui::IsAnyItemHovered() || ImGui::IsWindowHovered() ||ImGui::IsWindowFocused();
+    {
+        Vec2f ws= App::get_size();
+        float max_picker = 180;
+        ImGui::SetNextWindowPos(ImVec2(ws.x -max_picker,0));
+        ImGui::SetNextWindowSize(ImVec2(max_picker,ws.y));
+        ImGui::SetNextWindowBgAlpha(0.1f);
+        ImGui::SetNextWindowSizeConstraints(ImVec2(100,0),ImVec2(max_picker,ws.y));
+        if(ImGui::Begin("picker",NULL,ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoCollapse)){
+            ImVec2 max_region = ImGui::GetContentRegionMax();
+            float current_x = 0;
+            for (int i = 0; i < subs.size(); ++i) {
+                Subtexture t = subs[i];
+                ImGui::PushID(i);
+                ImVec2 im_size = ImVec2(20,20);
+                if(ImGui::ImageButton( &main_tex,im_size,
+                                   ImVec2(t.tex_coords[0].x,t.tex_coords[0].y),
+                                   ImVec2(t.tex_coords[2].x,t.tex_coords[2].y),
+                                   1
+                                   )) current = i;
+                current_x += im_size.x;
+                if(current_x+im_size.x <= max_region.x){
+                    ImGui::SameLine(0,0);
+                }
+                else {
+                    current_x =0;
+                }
+                ImGui::PopID();
+            }
+        }
+        imgui = imgui||ImGui::IsWindowHovered() ||ImGui::IsWindowFocused();
+        ImGui::End();
+    }
+    if(Input::down(MouseButton::Left) && in_range(mouse_pos) && !imgui){
         changed = true;
-        b.push_matrix(batch.peek_matrix());
-        b.circle(mouse_pos,10,20,current_color);
-        b.pop_matrix();
-        b.render(target);
-        b.clear();
-        tex->get_data(data);
+        data[m_y*width + m_x] = current;
     }
     if(Input::down(MouseButton::Middle)){
         offset += Input::mouse() - mouse_prev;
     }
-    if(Input::down(Key::LeftControl) &&Input::down(Key::Z) &&old_data.size()>0 ){
-        delete []data;
-        data = old_data.pop();
-        tex->set_data(data);
+    if(!imgui){
+        zoom -= float(Input::mouse_wheel().y)  *0.05;
+        zoom = Calc::clamp(zoom,0.001,2000);
     }
-//    // only modify on cpu after this
-//    tex->get_data(data);
-//        data[m_y*tex->width() + m_x] = current_color;
-
-//    // do all modifications before this
-//    tex->set_data(data);
-
-//    auto center = App::get_backbuffer_size() / 2;
     Vec2f center = Vec2f(0,0);
     auto transform = Mat3x2f::create_transform(center+offset, Vec2f::zero, Vec2f(1/zoom,1/zoom), 0);
     batch.push_matrix(transform);
     mouse_pos = Vec2f::transform(Input::mouse(),batch.peek_matrix().invert());
     batch.set_sampler( TextureSampler(TextureFilter::Nearest));
-    batch.tex(tex);
+    for (int i = 0; i < height; ++i) {
+        for (int j = 0; j < width; ++j) {
+            int index = j*width + i;
+            Vec2f pos = Vec2f(8*i,8*j);
+            int id = data[index];
+//            batch.rect_line(Rectf(8*i,8*j,8,8),0.5,Color::white);
+            if(id!=-1)
+                batch.tex(subs[id],pos,Vec2f::zero,Vec2f(1.f,1.f),0,Color::white);
+        }
+    }
     batch.pop_matrix();
+
     batch.str(font,String::fmt("%2d %2d\n",m_x,m_y),Vec2f(10,10),Color::white);
 
     batch.render();
     batch.clear();
-    if(changed){
-        old_data.push_back(data);
-        data = new Color[width*height];
-        Log::info("saved");
-    }
     mouse_prev = Input::mouse();
 }
 
@@ -125,8 +155,16 @@ bool Editor::in_range(Vec2f test) {
 
 
 Editor editor;
-void init(){ editor.init();}
-void update(){ editor.update();}
+void init(){
+    blah_imgui_startup();
+    editor.init();
+}
+void update(){
+    blah_imgui_update();
+    editor.update();
+    blah_imgui_render();
+
+}
 
 int main()
 {
