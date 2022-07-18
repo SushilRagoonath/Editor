@@ -18,6 +18,9 @@ struct Editor{
     void save();
     bool in_range(Vec2f test);
     Batch b;
+    Vector<Color*> old_data;
+    bool changed = false;
+
 };
 struct UI{
     struct Element{
@@ -58,21 +61,28 @@ void Editor::init(){
 }
 void Editor::update(){
     App::backbuffer()->clear(Color::black);
+    changed = false;
     int m_x,m_y;
     m_x = int(Calc::floor(mouse_pos.x));
     m_y = int(Calc::floor(mouse_pos.y));
     zoom -= float(Input::mouse_wheel().y)  *0.1;
     zoom = Calc::clamp(zoom,0.1,200);
-
     if(Input::down(MouseButton::Left) && in_range(mouse_pos)){
+        changed = true;
         b.push_matrix(batch.peek_matrix());
         b.circle(mouse_pos,10,20,current_color);
         b.pop_matrix();
         b.render(target);
         b.clear();
+        tex->get_data(data);
     }
     if(Input::down(MouseButton::Middle)){
         offset += Input::mouse() - mouse_prev;
+    }
+    if(Input::down(Key::LeftControl) &&Input::down(Key::Z) &&old_data.size()>0 ){
+        delete []data;
+        data = old_data.pop();
+        tex->set_data(data);
     }
 //    // only modify on cpu after this
 //    tex->get_data(data);
@@ -88,12 +98,16 @@ void Editor::update(){
     mouse_pos = Vec2f::transform(Input::mouse(),batch.peek_matrix().invert());
     batch.set_sampler( TextureSampler(TextureFilter::Nearest));
     batch.tex(tex);
-
     batch.pop_matrix();
     batch.str(font,String::fmt("%2d %2d\n",m_x,m_y),Vec2f(10,10),Color::white);
 
     batch.render();
     batch.clear();
+    if(changed){
+        old_data.push_back(data);
+        data = new Color[width*height];
+        Log::info("saved");
+    }
     mouse_prev = Input::mouse();
 }
 
