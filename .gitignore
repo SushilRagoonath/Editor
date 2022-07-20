@@ -3,3 +3,6 @@ cmake-*
 *.ilk
 *.exe
 *.pdb
+build/
+Debug/
+Release/

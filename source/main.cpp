@@ -1,29 +1,31 @@
 #include <blah.h>
 using namespace Blah;
 struct Editor{
-    int width =500;
-    int height =width;
-    Vec2f mouse_pos;
-    Vec2f mouse_prev;
-    Vec2f offset;
-    float zoom = 0.1f;
-    TextureRef main_tex;
-    Vector<Subtexture> subs;
-    Vec2f tile_size = Vec2f(8.f,8.f);
-    bool tile_picking = false;
-    int * data = nullptr;
     void init();
     void update();
     void save();
     void tile_picker();
     void draw_map();
     bool in_range(Vec2f test);
-    Batch b;
+    // tile size
+    int width =500;
+    int height =width;
+    TextureRef main_tex;
+    Vector<Subtexture> subs;
+    // mouse related
+    Vec2f mouse_pos;
+    Vec2f mouse_prev;
+    Vec2f offset;
+    float zoom = 0.1f;
+    // tile related
+    Vec2f tile_size = Vec2f(8.f,8.f);
+    bool tile_picking = false;
+    int * data = nullptr;
     bool changed = false;
     int current = -1;
+    Batch batch;
+    SpriteFont font;
 };
-Batch batch;
-SpriteFont font;
 void Editor::init(){
     font = SpriteFont("default.ttf",15);
     // TODO image specific
@@ -66,7 +68,9 @@ void Editor::update(){
     if(Input::down(MouseButton::Middle)){
         offset += Input::mouse() - mouse_prev;
     }
-
+    if(Input::pressed(Key::S)){
+        save();
+    }
     zoom -= float(Input::mouse_wheel().y) * 0.05;
     zoom = Calc::clamp(zoom,0.001,2000); // dont want the image to be reversed with -zoom
     if(!tile_picking) draw_map();
@@ -78,7 +82,14 @@ void Editor::update(){
 }
 
 void Editor::save() {
-//    tex.
+    FileStream fs = FileStream("data.out",FileMode::CreateWrite);
+    fs.write_i32(width);
+    fs.write_i32(height);
+    for (int j = 0; j < height; ++j) {
+        for (int i = 0; i < width ; ++i) {
+            fs.write_i32(data[j*width +i]);
+        }
+    }
 }
 // check pos is in range of image
 bool Editor::in_range(Vec2f test) {
@@ -147,7 +158,7 @@ void update(){
 int main()
 {
     Config config;
-    config.name = "blah app";
+    config.name = "Tilemap editor";
     config.on_startup = init;
     config.on_render = update;
     App::run(&config);
