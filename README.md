@@ -1,7 +1,7 @@
-# WIP Tilemap Editor
-Todo:
+## WIP Tilemap Editor
+### Todo:
 layers,objects,arbitrary tilesets, bin export
-Maybe:
+### Maybe:
 Json export, csv export, PNG export per layer.
 
 
